@@ -103,17 +103,17 @@ class WakeProPlugin(Star):
         if uid in self.conf.get("user_blacklist", []):
             return
 
-        # 2. 沉默 / 闭嘴检查
+        # 2. 更新成员状态
+        if uid not in g.members:
+            g.members[uid] = MemberState(uid=uid)
+
+        # 3. 沉默 / 闭嘴检查
         if self._is_shutup(g):
             event.stop_event()
             return
         if self._is_insult(g, uid):
             event.stop_event()
             return
-
-        # 3. 更新成员状态
-        if uid not in g.members:
-            g.members[uid] = MemberState(uid=uid)
 
         # 4. 各类唤醒条件
         should_wake = False
