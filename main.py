@@ -12,24 +12,24 @@ from .similarity import Similarity
 
 
 class MemberState(pydantic.BaseModel):
-    uid: int
+    uid: str
     last_wake: int = 0  # 最后唤醒bot的时间
     silence_until: int = 0  # 被辱骂后沉默到何时
 
 
 class GroupState(pydantic.BaseModel):
-    gid: int
-    members: dict[int, MemberState] = {}  # uin -> state
+    gid: str
+    members: dict[str, MemberState] = {}  # uin -> state
     shutup_until: int = 0  # 闭嘴到何时
 
 
 class StateManager:
     """内存状态管理"""
 
-    _groups: dict[int, GroupState] = {}
+    _groups: dict[str, GroupState] = {}
 
     @classmethod
-    def get_group(cls, gid: int) -> GroupState:
+    def get_group(cls, gid: str) -> GroupState:
         if gid not in cls._groups:
             cls._groups[gid] = GroupState(gid=gid)
         return cls._groups[gid]
@@ -54,7 +54,7 @@ class WakeProPlugin(Star):
     def _is_shutup(self, g: GroupState) -> bool:
         return g.shutup_until > StateManager.now()
 
-    def _is_silence(self, g: GroupState, uin: int) -> bool:
+    def _is_insult(self, g: GroupState, uin: str) -> bool:
         m = g.members.get(uin)
         silence_until = m.silence_until if m else 0
         return silence_until > StateManager.now()
@@ -88,26 +88,26 @@ class WakeProPlugin(Star):
     @filter.event_message_type(filter.EventMessageType.GROUP_MESSAGE)
     async def on_group_msg(self, event: AstrMessageEvent):
         """主入口"""
-        bid = int(event.get_self_id())
-        gid = int(event.get_group_id() or 0)
-        uid = int(event.get_sender_id())
-        msg = event.message_str.strip()
-        g = StateManager.get_group(gid)
+        bid: str = event.get_self_id()
+        gid: str = event.get_group_id()
+        uid: str = event.get_sender_id()
+        msg: str = event.message_str.strip()
+        g: GroupState = StateManager.get_group(gid)
 
         # 1. 自身消息 / 群聊白名单 / 用户黑名单
         if uid == bid:
             event.stop_event()
             return
-        if gid and self.conf["group_whitelist"] and str(gid) not in self.conf["group_whitelist"]:
+        if gid and self.conf["group_whitelist"] and gid not in self.conf["group_whitelist"]:
             return
-        if str(uid) in self.conf.get("user_blacklist", []):
+        if uid in self.conf.get("user_blacklist", []):
             return
 
         # 2. 沉默 / 闭嘴检查
         if self._is_shutup(g):
             event.stop_event()
             return
-        if self._is_silence(g, uid):
+        if self._is_insult(g, uid):
             event.stop_event()
             return
 
@@ -142,7 +142,7 @@ class WakeProPlugin(Star):
         if not should_wake and self.conf["relevant_wake"] :
             if bmsgs := await self._get_history_msg(event, count=5):
                 for bmsg in bmsgs:
-                    simi = Similarity.cosine(msg, bmsg)
+                    simi = Similarity.cosine(msg, bmsg, gid)
                     if simi > self.conf["relevant_wake"]:
                         should_wake = True
                         reason = f"话题相关性{simi}>{self.conf['relevant_wake']}"
@@ -175,7 +175,7 @@ class WakeProPlugin(Star):
         # 6. 闭嘴机制(对当前群聊闭嘴)
         if self.conf["shutup"]:
             shut_th = self.sent.shut(msg)
-            if self.sent.shut(msg) > self.conf["shutup"]:
+            if shut_th > self.conf["shutup"]:
                 shut_sec = int(shut_th * self.conf["sult_multiple"])
                 g.shutup_until = StateManager.now() + shut_sec
                 reason = f"触发闭嘴机制{shut_sec}秒"
@@ -185,7 +185,7 @@ class WakeProPlugin(Star):
         # 7. 沉默机制(对单个用户沉默)
         if self.conf["insult"]:
             insult_th = self.sent.insult(msg)
-            if self.sent.insult(msg) > self.conf["insult"]:
+            if insult_th > self.conf["insult"]:
                 silence_sec = int(insult_th * self.conf["sult_multiple"])
                 g.members[uid].silence_until = StateManager.now() + silence_sec
                 reason = f"触发沉默机制{silence_sec}秒"
