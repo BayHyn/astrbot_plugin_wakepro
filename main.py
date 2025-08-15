@@ -61,7 +61,7 @@ class WakeProPlugin(Star):
         return silence_until > StateManager.now()
 
     async def _get_history_msg(
-        self, event: AstrMessageEvent, role: str = "assistant", count: int|None=0
+        self, event: AstrMessageEvent, role: str = "assistant", count: int | None = 0
     ) -> list | None:
         """获取历史消息"""
         try:
@@ -130,9 +130,14 @@ class WakeProPlugin(Star):
         if uid == bid:
             event.stop_event()
             return
-        if gid and self.conf["group_whitelist"] and gid not in self.conf["group_whitelist"]:
+        if (
+            gid
+            and self.conf["group_whitelist"]
+            and gid not in self.conf["group_whitelist"]
+        ):
             return
         if uid in self.conf.get("user_blacklist", []):
+            event.stop_event()
             return
 
         # 2. 更新成员状态
@@ -185,7 +190,7 @@ class WakeProPlugin(Star):
             reason = "唤醒延长"
 
         # 5.3 话题相关性唤醒
-        if not should_wake and self.conf["relevant_wake"] :
+        if not should_wake and self.conf["relevant_wake"]:
             if bmsgs := await self._get_history_msg(event, count=5):
                 for bmsg in bmsgs:
                     simi = Similarity.cosine(msg, bmsg, gid)

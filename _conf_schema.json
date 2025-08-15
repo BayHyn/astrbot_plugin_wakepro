@@ -7,7 +7,7 @@
     },
     "user_blacklist": {
         "description": "用户黑名单",
-        "hint": "屏蔽黑名单里的用户，使其无法唤醒bot",
+        "hint": "屏蔽黑名单里的用户，使其全局无法唤醒bot",
         "type": "list",
         "default": []
     },
