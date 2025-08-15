@@ -1,0 +1,68 @@
+{
+    "group_whitelist": {
+        "description": "群聊白名单",
+        "hint": "仅在群聊白名单里的群启用本插件功能，不填表示所有群聊都启用",
+        "type": "list",
+        "default": []
+    },
+    "user_blacklist": {
+        "description": "用户黑名单",
+        "hint": "屏蔽黑名单里的用户，使其无法唤醒bot",
+        "type": "list",
+        "default": []
+    },
+    "mention_wake": {
+        "description": "提及唤醒的昵称",
+        "hint": "提及到bot的昵称时,唤醒bot。不填时关闭提及检测",
+        "type": "list",
+        "default": []
+    },
+    "wake_extend": {
+        "description": "唤醒延长时间（秒）",
+        "hint": "bot被唤醒后的多长时间内，持续保持唤醒状态(每个用户单独计时)。 设为0时关闭检测",
+        "type": "int",
+        "default": 2
+    },
+    "relevant_wake": {
+        "description": "相关性唤醒阈值",
+        "hint": "当前消息与上文bot的消息相关性大时，唤醒bot。 降低阈值可更容易唤醒，保持对话连续性。 设为0时关闭检测",
+        "type": "float",
+        "default": 0.88
+    },
+    "ask_wake": {
+        "description": "答疑唤醒阈值",
+        "hint": "当群里有人问专业性问题时，唤醒bot。建议更低阈值，确保不遗漏专业问题。 设为0时关闭检测",
+        "type": "float",
+        "default": 0.55
+    },
+    "bored_wake": {
+        "description": "无聊唤醒阈值",
+        "hint": "当群里有人感到无聊或长时间无人发言时，唤醒bot。无聊检测设小点可更敏感，活跃群聊氛围。 设为0时关闭检测",
+        "type": "float",
+        "default": 0.6
+    },
+    "shutup": {
+        "description": "闭嘴检测阈值",
+        "hint": "有人感觉bot太多话时，bot自动闭嘴一段时间。 闭嘴检测建议设定更高阈值，防止误判。 设为0时关闭检测",
+        "type": "float",
+        "default": 0.7
+    },
+    "insult": {
+        "description": "辱骂检测阈值",
+        "hint": "有人辱骂bot时，bot自动沉默一段时间。 辱骂检测建议设定更高阈值，防止误判。 设为0时关闭检测",
+        "type": "float",
+        "default": 0.75
+    },
+    "sult_multiple": {
+        "description": "闭嘴/沉默的时间倍数",
+        "hint": "bot触发闭嘴/沉默时的阈值（0~1） * 闭嘴/沉默的时间倍数 = 闭嘴/沉默的时间",
+        "type": "float",
+        "default": 100
+    },
+    "prob_wake": {
+        "description": "兜底唤醒概率",
+        "hint": "上述所有唤醒机制都没能唤醒bot时，最后会按照此概率尝试唤醒bot，概率越大越容易唤醒，建议设置得非常小",
+        "type": "float",
+        "default": 0.001
+    }
+}
