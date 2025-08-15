@@ -4,6 +4,7 @@ import random
 import pydantic
 from astrbot.api.event import filter
 from astrbot.api.star import Context, Star, register
+from astrbot.core.message.components import At
 from astrbot.core.platform.astr_message_event import AstrMessageEvent
 from astrbot.core.config.astrbot_config import AstrBotConfig
 from astrbot.api import logger
@@ -42,8 +43,8 @@ class StateManager:
 @register(
     "astrbot_plugin_wakepro",
     "Zhalslar",
-    "更强大的唤醒增强插件：提及唤醒、唤醒延长、话题相关性唤醒、答疑唤醒、无聊唤醒、闭嘴机制、被骂沉默机制",
-    "v1.0.0",
+    "更强大的唤醒增强插件：提及唤醒、唤醒延长、空@唤醒、话题相关性唤醒、答疑唤醒、无聊唤醒、闭嘴机制、被骂沉默机制",
+    "v1.0.1",
 )
 class WakeProPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
@@ -60,7 +61,7 @@ class WakeProPlugin(Star):
         return silence_until > StateManager.now()
 
     async def _get_history_msg(
-        self, event: AstrMessageEvent, role: str = "assistant", count: int = 10
+        self, event: AstrMessageEvent, role: str = "assistant", count: int|None=0
     ) -> list | None:
         """获取历史消息"""
         try:
@@ -79,15 +80,46 @@ class WakeProPlugin(Star):
                         contexts.append({record["content"]})
 
             contexts = [item for sublist in contexts for item in sublist]
-            return contexts[-count:]
+            return contexts[-count:] if count else contexts
 
         except Exception as e:
             logger.error(f"获取历史消息失败：{e}")
             return None
 
+    async def _get_llm_respond(
+        self, event: AstrMessageEvent, prompt_template: str
+    ) -> str | None:
+        """调用llm回复"""
+        try:
+            umo = event.unified_msg_origin
+            curr_cid = await self.context.conversation_manager.get_curr_conversation_id(
+                umo
+            )
+            conversation = await self.context.conversation_manager.get_conversation(
+                umo, curr_cid
+            )
+            contexts = json.loads(conversation.history)
+
+            personality = self.context.get_using_provider().curr_personality
+            personality_prompt = personality["prompt"] if personality else ""
+
+            format_prompt = prompt_template.format(username=event.get_sender_name())
+
+            llm_response = await self.context.get_using_provider().text_chat(
+                prompt=format_prompt,
+                system_prompt=personality_prompt,
+                contexts=contexts,
+            )
+            return llm_response.completion_text
+
+        except Exception as e:
+            logger.error(f"LLM 调用失败：{e}")
+            return None
+
     @filter.event_message_type(filter.EventMessageType.GROUP_MESSAGE)
     async def on_group_msg(self, event: AstrMessageEvent):
         """主入口"""
+        chain = event.get_messages()
         bid: str = event.get_self_id()
         gid: str = event.get_group_id()
         uid: str = event.get_sender_id()
@@ -115,11 +147,25 @@ class WakeProPlugin(Star):
             event.stop_event()
             return
 
-        # 4. 各类唤醒条件
+        # 4. 空@回复
+        if (
+            not msg
+            and len(chain) == 1
+            and isinstance(chain[0], At)
+            and str(chain[0].qq) == bid
+        ):
+            if text := await self._get_llm_respond(
+                event, self.conf["empty_mention_pt"]
+            ):
+                await event.send(event.plain_result(text))
+                event.stop_event()
+                return
+
+        # 5. 各类唤醒条件
         should_wake = False
         reason = None
 
-        # 4.1 提及唤醒
+        # 5.1 提及唤醒
         if self.conf["mention_wake"]:
             names = [n for n in self.conf["mention_wake"] if n]
             for n in names:
@@ -128,7 +174,7 @@ class WakeProPlugin(Star):
                     reason = f"提及唤醒({n})"
                     break
 
-        # 4.2 唤醒延长（如果已经处于唤醒状态且在 wake_extend 秒内，每个用户单独延长唤醒时间）
+        # 5.2 唤醒延长（如果已经处于唤醒状态且在 wake_extend 秒内，每个用户单独延长唤醒时间）
         if (
             not should_wake
             and self.conf["wake_extend"]
@@ -138,7 +184,7 @@ class WakeProPlugin(Star):
             should_wake = True
             reason = "唤醒延长"
 
-        # 4.3 话题相关性唤醒
+        # 5.3 话题相关性唤醒
         if not should_wake and self.conf["relevant_wake"] :
             if bmsgs := await self._get_history_msg(event, count=5):
                 for bmsg in bmsgs:
@@ -148,31 +194,31 @@ class WakeProPlugin(Star):
                         reason = f"话题相关性{simi}>{self.conf['relevant_wake']}"
                         break
 
-        # 4.4 答疑唤醒
+        # 5.4 答疑唤醒
         if not should_wake and self.conf["ask_wake"]:
             if self.sent.ask(msg) > self.conf["ask_wake"]:
                 should_wake = True
                 reason = "答疑唤醒"
 
-        # 4.5 无聊唤醒
+        # 5.5 无聊唤醒
         if not should_wake and self.conf["bored_wake"]:
             if self.sent.bored(msg) > self.conf["bored_wake"]:
                 should_wake = True
                 reason = "无聊唤醒"
 
-        # 4.6 概率唤醒
+        # 5.6 概率唤醒
         if not should_wake and self.conf["prob_wake"]:
             if random.random() < self.conf["prob_wake"]:
                 should_wake = True
                 reason = "概率唤醒"
 
-        # 5. 触发唤醒
+        # 6. 触发唤醒
         if should_wake:
             event.is_at_or_wake_command = True
             g.members[uid].last_wake = StateManager.now()
             logger.info(f"[wakepro] 群({gid}){reason}：{msg}")
 
-        # 6. 闭嘴机制(对当前群聊闭嘴)
+        # 7. 闭嘴机制(对当前群聊闭嘴)
         if self.conf["shutup"]:
             shut_th = self.sent.shut(msg)
             if shut_th > self.conf["shutup"]:
@@ -182,7 +228,7 @@ class WakeProPlugin(Star):
                 logger.info(f"[wakepro] 群({gid}){reason}：{msg}")
                 return
 
-        # 7. 沉默机制(对单个用户沉默)
+        # 8. 沉默机制(对单个用户沉默)
         if self.conf["insult"]:
             insult_th = self.sent.insult(msg)
             if insult_th > self.conf["insult"]:
