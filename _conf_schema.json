@@ -27,7 +27,7 @@
         "description": "唤醒延长时间（秒）",
         "hint": "bot被唤醒后的多长时间内，持续保持唤醒状态(每个用户单独计时)。 设为0时关闭检测",
         "type": "int",
-        "default": 2
+        "default": 3
     },
     "relevant_wake": {
         "description": "相关性唤醒阈值",
@@ -37,9 +37,9 @@
     },
     "ask_wake": {
         "description": "答疑唤醒阈值",
-        "hint": "当群里有人问专业性问题时，唤醒bot。建议更低阈值，确保不遗漏专业问题。 设为0时关闭检测",
+        "hint": "当群里有人问专业性问题时，唤醒bot。建议阈值高一点，日常聊天疑问句出现的频率非常高。 设为0时关闭检测",
         "type": "float",
-        "default": 0.55
+        "default": 0.9
     },
     "bored_wake": {
         "description": "无聊唤醒阈值",
@@ -49,15 +49,15 @@
     },
     "shutup": {
         "description": "闭嘴检测阈值",
-        "hint": "有人感觉bot太多话时，bot自动闭嘴一段时间。 闭嘴检测建议设定更高阈值，防止误判。 设为0时关闭检测",
+        "hint": "有人感觉bot太多话时，bot自动闭嘴一段时间。 低阈值更容易让bot闭嘴。 设为0时关闭检测",
         "type": "float",
-        "default": 0.7
+        "default": 0.69
     },
     "insult": {
         "description": "辱骂检测阈值",
-        "hint": "有人辱骂bot时，bot自动沉默一段时间。 辱骂检测建议设定更高阈值，防止误判。 设为0时关闭检测",
+        "hint": "有人辱骂bot时，bot自动沉默一段时间。 低阈值更容易让bot沉默，玻璃心更重。 设为0时关闭检测",
         "type": "float",
-        "default": 0.75
+        "default": 0.69
     },
     "sult_multiple": {
         "description": "闭嘴/沉默的时间倍数",
