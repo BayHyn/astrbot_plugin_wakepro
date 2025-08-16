@@ -230,6 +230,7 @@ class WakeProPlugin(Star):
                 g.shutup_until = StateManager.now() + shut_sec
                 reason = f"触发闭嘴机制{shut_sec}秒"
                 logger.info(f"[wakepro] 群({gid}){reason}：{msg}")
+                event.stop_event()
                 return
 
         # 8. 沉默机制(对单个用户沉默)
@@ -240,4 +241,5 @@ class WakeProPlugin(Star):
                 g.members[uid].silence_until = StateManager.now() + silence_sec
                 reason = f"触发沉默机制{silence_sec}秒"
                 logger.info(f"[wakepro] 群({gid})用户({uid}){reason}：{msg}")
+                #event.stop_event() 本轮对话不沉默，方便回怼
                 return

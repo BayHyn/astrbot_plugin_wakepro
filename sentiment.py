@@ -1,7 +1,10 @@
 import math
 import jieba
 import re
+from astrbot.api import logger
 
+# 扩充jieba词典, 后续补充
+jieba.add_word("傻逼")
 
 class Sentiment:
     """
@@ -189,6 +192,7 @@ class Sentiment:
         for word in jieba.lcut(text):
             if word.strip() and word not in cls.STOP:
                 words.append(word)
+        logger.debug(f"[wakepro] {words}")
         return words
 
     @classmethod
