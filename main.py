@@ -44,7 +44,7 @@ class StateManager:
     "astrbot_plugin_wakepro",
     "Zhalslar",
     "更强大的唤醒增强插件：提及唤醒、唤醒延长、空@唤醒、话题相关性唤醒、答疑唤醒、无聊唤醒、闭嘴机制、被骂沉默机制",
-    "v1.0.1",
+    "v1.0.2",
 )
 class WakeProPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
@@ -126,9 +126,8 @@ class WakeProPlugin(Star):
         msg: str = event.message_str.strip()
         g: GroupState = StateManager.get_group(gid)
 
-        # 1. 自身消息 / 群聊白名单 / 用户黑名单
+        # 1. 群聊白名单 / 用户黑名单
         if uid == bid:
-            event.stop_event()
             return
         if (
             gid
