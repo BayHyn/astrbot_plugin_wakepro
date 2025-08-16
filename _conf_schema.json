@@ -63,7 +63,7 @@
         "description": "闭嘴/沉默的时间倍数",
         "hint": "bot触发闭嘴/沉默时的阈值（0~1） * 闭嘴/沉默的时间倍数 = 闭嘴/沉默的时间",
         "type": "float",
-        "default": 100
+        "default": 500
     },
     "prob_wake": {
         "description": "兜底唤醒概率",
