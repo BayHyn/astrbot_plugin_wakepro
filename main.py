@@ -1,6 +1,8 @@
+import collections
 import json
 import time
 import random
+from typing import Optional
 import pydantic
 from astrbot.api.event import filter
 from astrbot.api.star import Context, Star, register
@@ -10,6 +12,10 @@ from astrbot.core.config.astrbot_config import AstrBotConfig
 from astrbot.api import logger
 from .sentiment import Sentiment
 from .similarity import Similarity
+from astrbot.core.star.filter.command import CommandFilter
+from astrbot.core.star.filter.command_group import CommandGroupFilter
+from astrbot.core.star.star_handler import star_handlers_registry, StarHandlerMetadata
+
 
 
 class MemberState(pydantic.BaseModel):
@@ -44,7 +50,7 @@ class StateManager:
 @register(
     "astrbot_plugin_wakepro",
     "Zhalslar",
-    "更强大的唤醒增强插件：提及唤醒、唤醒延长、空@唤醒、话题相关性唤醒、答疑唤醒、无聊唤醒、闭嘴机制、被骂沉默机制",
+    "更强大的唤醒增强插件：提及唤醒、唤醒延长、唤醒CD、话题相关性唤醒、答疑唤醒、无聊唤醒、闭嘴机制、被骂沉默机制、唤醒屏蔽词",
     "v1.0.3",
 )
 class WakeProPlugin(Star):
@@ -117,7 +123,7 @@ class WakeProPlugin(Star):
             logger.error(f"LLM 调用失败：{e}")
             return None
 
-    @filter.event_message_type(filter.EventMessageType.GROUP_MESSAGE)
+    @filter.event_message_type(filter.EventMessageType.GROUP_MESSAGE, priority=99)
     async def on_group_msg(self, event: AstrMessageEvent):
         """主入口"""
         chain = event.get_messages()
@@ -260,3 +266,4 @@ class WakeProPlugin(Star):
                 logger.info(f"[wakepro] 群({gid})用户({uid}){reason}：{msg}")
                 # event.stop_event() 本轮对话不沉默，方便回怼
                 return
+
