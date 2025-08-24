@@ -1,8 +1,6 @@
-import collections
 import json
 import time
 import random
-from typing import Optional
 import pydantic
 from astrbot.api.event import filter
 from astrbot.api.star import Context, Star, register
@@ -12,10 +10,6 @@ from astrbot.core.config.astrbot_config import AstrBotConfig
 from astrbot.api import logger
 from .sentiment import Sentiment
 from .similarity import Similarity
-from astrbot.core.star.filter.command import CommandFilter
-from astrbot.core.star.filter.command_group import CommandGroupFilter
-from astrbot.core.star.star_handler import star_handlers_registry, StarHandlerMetadata
-
 
 
 class MemberState(pydantic.BaseModel):
