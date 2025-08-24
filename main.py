@@ -45,7 +45,7 @@ class StateManager:
     "astrbot_plugin_wakepro",
     "Zhalslar",
     "更强大的唤醒增强插件：提及唤醒、唤醒延长、空@唤醒、话题相关性唤醒、答疑唤醒、无聊唤醒、闭嘴机制、被骂沉默机制",
-    "v1.0.2",
+    "v1.0.3",
 )
 class WakeProPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
@@ -149,9 +149,16 @@ class WakeProPlugin(Star):
             not event.is_private_chat()
             and StateManager.now() - g.members[uid].last_wake < self.conf["member_wake_cd"]
         ):
-            logger.debug(f"{uid} 处于唤醒CD中")
+            logger.debug(f"{uid} 处于唤醒CD中, 忽略此次唤醒")
             event.stop_event()
             return
+
+        # 唤醒违禁词检查
+        for word in self.conf["wake_forbidden_words"]:
+            if word in event.message_str:
+                logger.debug(f"{uid} 消息中含有唤醒屏蔽词, 忽略此次唤醒")
+                event.stop_event()
+                return
 
         # 沉默 / 闭嘴检查
         if self._is_shutup(g):
@@ -161,7 +168,7 @@ class WakeProPlugin(Star):
             event.stop_event()
             return
 
-        # 4. 空@回复
+        # 空@回复
         if (
             not msg
             and len(chain) == 1

@@ -76,5 +76,15 @@
         "hint": "上述所有唤醒机制都没能唤醒bot时，最后会按照此概率尝试唤醒bot，概率越大越容易唤醒，建议设置得非常小",
         "type": "float",
         "default": 0.001
+    },
+    "wake_forbidden_words":{
+        "description": "唤醒词屏蔽词",
+        "hint": "唤醒词屏蔽词，如果用户输入的唤醒词包含这些词，则不会唤醒bot",
+        "type": "list",
+        "default": [
+            "政治",
+            "键证",
+            "党"
+        ]
     }
 }
