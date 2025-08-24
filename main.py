@@ -14,8 +14,9 @@ from .similarity import Similarity
 
 class MemberState(pydantic.BaseModel):
     uid: str
+    silence_until: int = 0  # 沉默到何时
+    msg_times: list[float] = []  # 最近消息时间列表
     last_wake: int = 0  # 最后唤醒bot的时间
-    silence_until: int = 0  # 被辱骂后沉默到何时
 
 
 class GroupState(pydantic.BaseModel):
@@ -126,7 +127,7 @@ class WakeProPlugin(Star):
         msg: str = event.message_str.strip()
         g: GroupState = StateManager.get_group(gid)
 
-        # 1. 群聊白名单 / 用户黑名单
+        # 群聊白名单 / 用户黑名单
         if uid == bid:
             return
         if (
@@ -139,11 +140,20 @@ class WakeProPlugin(Star):
             event.stop_event()
             return
 
-        # 2. 更新成员状态
+        # 更新成员状态
         if uid not in g.members:
             g.members[uid] = MemberState(uid=uid)
 
-        # 3. 沉默 / 闭嘴检查
+        # 唤醒CD检查
+        if (
+            not event.is_private_chat()
+            and StateManager.now() - g.members[uid].last_wake < self.conf["member_wake_cd"]
+        ):
+            logger.debug(f"{uid} 处于唤醒CD中")
+            event.stop_event()
+            return
+
+        # 沉默 / 闭嘴检查
         if self._is_shutup(g):
             event.stop_event()
             return
@@ -165,12 +175,12 @@ class WakeProPlugin(Star):
                 event.stop_event()
                 return
 
-        # 5. 各类唤醒条件
-        should_wake = False
+        # 各类唤醒条件
+        should_wake = event.is_at_or_wake_command
         reason = None
 
-        # 5.1 提及唤醒
-        if self.conf["mention_wake"]:
+        # 提及唤醒
+        if not should_wake and self.conf["mention_wake"]:
             names = [n for n in self.conf["mention_wake"] if n]
             for n in names:
                 if n and n in msg:
@@ -178,7 +188,7 @@ class WakeProPlugin(Star):
                     reason = f"提及唤醒({n})"
                     break
 
-        # 5.2 唤醒延长（如果已经处于唤醒状态且在 wake_extend 秒内，每个用户单独延长唤醒时间）
+        # 唤醒延长（如果已经处于唤醒状态且在 wake_extend 秒内，每个用户单独延长唤醒时间）
         if (
             not should_wake
             and self.conf["wake_extend"]
@@ -198,31 +208,31 @@ class WakeProPlugin(Star):
                         reason = f"话题相关性{simi}>{self.conf['relevant_wake']}"
                         break
 
-        # 5.4 答疑唤醒
+        # 答疑唤醒
         if not should_wake and self.conf["ask_wake"]:
             if self.sent.ask(msg) > self.conf["ask_wake"]:
                 should_wake = True
                 reason = "答疑唤醒"
 
-        # 5.5 无聊唤醒
+        # 无聊唤醒
         if not should_wake and self.conf["bored_wake"]:
             if self.sent.bored(msg) > self.conf["bored_wake"]:
                 should_wake = True
                 reason = "无聊唤醒"
 
-        # 5.6 概率唤醒
+        # 概率唤醒
         if not should_wake and self.conf["prob_wake"]:
             if random.random() < self.conf["prob_wake"]:
                 should_wake = True
                 reason = "概率唤醒"
 
-        # 6. 触发唤醒
+        # 触发唤醒
         if should_wake:
             event.is_at_or_wake_command = True
             g.members[uid].last_wake = StateManager.now()
             logger.info(f"[wakepro] 群({gid}){reason}：{msg}")
 
-        # 7. 闭嘴机制(对当前群聊闭嘴)
+        # 闭嘴机制(对当前群聊闭嘴)
         if self.conf["shutup"]:
             shut_th = self.sent.shut(msg)
             if shut_th > self.conf["shutup"]:
@@ -233,7 +243,7 @@ class WakeProPlugin(Star):
                 event.stop_event()
                 return
 
-        # 8. 沉默机制(对单个用户沉默)
+        # 辱骂沉默机制(对单个用户沉默)
         if self.conf["insult"]:
             insult_th = self.sent.insult(msg)
             if insult_th > self.conf["insult"]:
@@ -241,5 +251,5 @@ class WakeProPlugin(Star):
                 g.members[uid].silence_until = StateManager.now() + silence_sec
                 reason = f"触发沉默机制{silence_sec}秒"
                 logger.info(f"[wakepro] 群({gid})用户({uid}){reason}：{msg}")
-                #event.stop_event() 本轮对话不沉默，方便回怼
+                # event.stop_event() 本轮对话不沉默，方便回怼
                 return

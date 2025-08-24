@@ -11,6 +11,12 @@
         "type": "list",
         "default": []
     },
+    "member_wake_cd":{
+        "description": "唤醒CD",
+        "hint": "唤醒bot的CD(冷却时间)，每个成员单独计CD, 私聊不计CD, 单位秒",
+        "type": "int",
+        "default": 3
+    },
     "empty_mention_pt": {
         "description": "空@消息提示模版",
         "hint": "使用此配置时请关闭Astrbot消息平台配置里的 “只@机器人是否触发等待” 和 “只@机器人触发等待时是否需要回复提醒”。 另外{username}会自动解析成用户昵称。 不填表示不启用空@回复",
