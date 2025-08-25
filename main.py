@@ -45,7 +45,7 @@ class StateManager:
     "astrbot_plugin_wakepro",
     "Zhalslar",
     "更强大的唤醒增强插件：提及唤醒、唤醒延长、唤醒CD、话题相关性唤醒、答疑唤醒、无聊唤醒、闭嘴机制、被骂沉默机制、唤醒屏蔽词",
-    "v1.0.3",
+    "v1.0.4",
 )
 class WakeProPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
@@ -60,27 +60,28 @@ class WakeProPlugin(Star):
         m = g.members.get(uin)
         silence_until = m.silence_until if m else 0
         return silence_until > StateManager.now()
-
     async def _get_history_msg(
         self, event: AstrMessageEvent, role: str = "assistant", count: int | None = 0
     ) -> list | None:
         """获取历史消息"""
         try:
             umo = event.unified_msg_origin
-            curr_cid = await self.context.conversation_manager.get_curr_conversation_id(
-                umo
-            )
+            curr_cid = await self.context.conversation_manager.get_curr_conversation_id(umo)
+            if not curr_cid:
+                return None
+
             conversation = await self.context.conversation_manager.get_conversation(
                 umo, curr_cid
             )
-            history = json.loads(conversation.history)
-            contexts = []
-            for record in history:
-                if record["role"] == role:
-                    if "content" in record and record["content"]:
-                        contexts.append({record["content"]})
+            if not conversation:
+                return None
 
-            contexts = [item for sublist in contexts for item in sublist]
+            history = json.loads(conversation.history or "[]")
+            contexts = [
+                record["content"]
+                for record in history
+                if record.get("role") == role and record.get("content")
+            ]
             return contexts[-count:] if count else contexts
 
         except Exception as e:
