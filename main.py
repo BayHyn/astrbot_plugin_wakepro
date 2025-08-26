@@ -2,7 +2,7 @@ import asyncio
 import json
 import time
 import random
-import pydantic
+from pydantic import BaseModel, ConfigDict, Field
 from astrbot.api.event import filter
 from astrbot.api.star import Context, Star, register
 from astrbot.core.message.components import At
@@ -13,20 +13,20 @@ from .sentiment import Sentiment
 from .similarity import Similarity
 
 
-class MemberState(pydantic.BaseModel):
+class MemberState(BaseModel):
     uid: str
     silence_until: float = 0.0  # 沉默到何时
     msg_times: list[float] = []  # 最近消息时间列表
     last_wake: float = 0.0  # 最后唤醒bot的时间
     pend_cd: float = 0.0  # 挂起CD
     pend: list[AstrMessageEvent] = []  # 事件缓存
-    lock: asyncio.Lock = asyncio.Lock()  # 锁
-    model_config = pydantic.ConfigDict(arbitrary_types_allowed=True)
+    lock: asyncio.Lock = Field(default_factory=asyncio.Lock)
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
-class GroupState(pydantic.BaseModel):
+class GroupState(BaseModel):
     gid: str
-    members: dict[str, MemberState] = {}  # uin -> state
+    members: dict[str, MemberState] = Field(default_factory=dict)
     shutup_until: float = 0.0  # 闭嘴到何时
 
 

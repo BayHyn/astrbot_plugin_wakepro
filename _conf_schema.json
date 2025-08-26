@@ -23,6 +23,12 @@
         "type": "float",
         "default": 60
     },
+    "wake_extend": {
+        "description": "唤醒延长（秒）",
+        "hint": "bot被唤醒后的多长时间内，持续保持唤醒状态(每个用户单独计时)。 设为0时关闭检测",
+        "type": "float",
+        "default": 3.0
+    },
     "empty_mention_pt": {
         "description": "空@消息提示模版",
         "hint": "使用此配置时请关闭Astrbot消息平台配置里的 “只@机器人是否触发等待” 和 “只@机器人触发等待时是否需要回复提醒”。 另外{username}会自动解析成用户昵称。 不填表示不启用空@回复",
@@ -35,12 +41,6 @@
         "type": "list",
         "default": []
     },
-    "wake_extend": {
-        "description": "唤醒延长时间（秒）",
-        "hint": "bot被唤醒后的多长时间内，持续保持唤醒状态(每个用户单独计时)。 设为0时关闭检测",
-        "type": "float",
-        "default": 3.0
-    },
     "relevant_wake": {
         "description": "相关性唤醒阈值",
         "hint": "当前消息与上文bot的消息相关性大时，唤醒bot。 降低阈值可更容易唤醒，保持对话连续性。 设为0时关闭检测",
@@ -51,7 +51,7 @@
         "description": "答疑唤醒阈值",
         "hint": "当群里有人问专业性问题时，唤醒bot。建议阈值高一点，日常聊天疑问句出现的频率非常高。 设为0时关闭检测",
         "type": "float",
-        "default": 0.9
+        "default": 0.88
     },
     "bored_wake": {
         "description": "无聊唤醒阈值",
@@ -79,9 +79,9 @@
     },
     "prob_wake": {
         "description": "兜底唤醒概率",
-        "hint": "上述所有唤醒机制都没能唤醒bot时，最后会按照此概率尝试唤醒bot，概率越大越容易唤醒，建议设置得非常小",
+        "hint": "上述所有唤醒机制都没能唤醒bot时，最后会按照此概率尝试唤醒bot(相当于Astrbot框架中的主动唤醒概率)，概率越大越容易唤醒，建议设置得非常小",
         "type": "float",
-        "default": 0.001
+        "default": 0.0005
     },
     "wake_forbidden_words":{
         "description": "唤醒词屏蔽词",
