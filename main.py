@@ -1,3 +1,4 @@
+import asyncio
 import json
 import time
 import random
@@ -19,6 +20,7 @@ class MemberState(pydantic.BaseModel):
     last_wake: float = 0.0  # 最后唤醒bot的时间
     pend_cd: float = 0.0  # 挂起CD
     pend: list[AstrMessageEvent] = []  # 事件缓存
+    lock: asyncio.Lock = asyncio.Lock()  # 锁
     model_config = pydantic.ConfigDict(arbitrary_types_allowed=True)
 
 
@@ -171,12 +173,15 @@ class WakeProPlugin(Star):
 
         # 消息缓存与合并
         if StateManager.now() - g.members[uid].last_wake < self.conf["pend_cd"]:
-            pend = g.members[uid].pend
-            pend.append(event)
-            if len(pend) > 1:
-                for et in pend[:-1]:
-                    event.message_str = f"{et.message_str} {event.message_str}"
-                    et.stop_event()
+            async with g.members[uid].lock:
+                pend = g.members[uid].pend
+                pend.append(event)
+                if len(pend) > 1:
+                    msgs = [et.message_str for et in pend[:-1]]
+                    for et in pend[:-1]:
+                        et.stop_event()
+                    event.message_str = " ".join(reversed(msgs + [event.message_str]))
+
 
         # 空@回复
         if (
@@ -226,22 +231,31 @@ class WakeProPlugin(Star):
                         break
 
         # 答疑唤醒
-        if not wake and self.conf["ask_wake"]:
-            if self.sent.ask(msg) > self.conf["ask_wake"]:
-                wake = True
-                reason = "答疑唤醒"
+        if (
+            not wake
+            and self.conf["ask_wake"]
+            and self.sent.ask(msg) > self.conf["ask_wake"]
+        ):
+            wake = True
+            reason = "答疑唤醒"
 
         # 无聊唤醒
-        if not wake and self.conf["bored_wake"]:
-            if self.sent.bored(msg) > self.conf["bored_wake"]:
-                wake = True
-                reason = "无聊唤醒"
+        if (
+            not wake
+            and self.conf["bored_wake"]
+            and self.sent.bored(msg) > self.conf["bored_wake"]
+        ):
+            wake = True
+            reason = "无聊唤醒"
 
         # 概率唤醒
-        if not wake and self.conf["prob_wake"]:
-            if random.random() < self.conf["prob_wake"]:
-                wake = True
-                reason = "概率唤醒"
+        if (
+            not wake
+            and self.conf["prob_wake"]
+            and random.random() < self.conf["prob_wake"]
+        ):
+            wake = True
+            reason = "概率唤醒"
 
         # 触发唤醒
         if wake:
@@ -252,7 +266,7 @@ class WakeProPlugin(Star):
             # 触发唤醒
             event.is_at_or_wake_command = True
             # 记录日志
-            logger.warning(f"[wakepro] 群({gid}){reason}：{msg}")
+            logger.info(f"[wakepro] 群({gid}){reason}：{msg}")
 
         # 闭嘴机制(对当前群聊闭嘴)
         if self.conf["shutup"]:
@@ -288,6 +302,7 @@ class WakeProPlugin(Star):
         ):
             uid: str = event.get_sender_id()
             g: GroupState = StateManager.get_group(gid)
-            g.members[uid].pend.clear()
+            async with g.members[uid].lock:
+                g.members[uid].pend.clear()
 
 
