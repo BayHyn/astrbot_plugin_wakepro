@@ -12,7 +12,6 @@ from astrbot.api import logger
 from .sentiment import Sentiment
 from .similarity import Similarity
 
-
 # 内置指令文本
 BUILT_CMDS = [
     "llm",
@@ -75,7 +74,7 @@ class StateManager:
     "astrbot_plugin_wakepro",
     "Zhalslar",
     "更强大的唤醒增强插件",
-    "v1.0.7",
+    "v1.0.8",
 )
 class WakeProPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
@@ -211,17 +210,21 @@ class WakeProPlugin(Star):
             return
 
         # 消息缓存与合并
+        event.set_extra("orig_message", event.message_str)
+        event.set_extra("timestamp", now)
         async with member.lock:
-            logger.debug(f"消息缓存：{len(member.pend)}")
             if (
                 member.pend
                 and now - member.pend[-1].get_extra("timestamp")  # type: ignore
                 < self.conf["pend_cd"]
             ):
-                msgs = [e.message_str for e in member.pend]
+                msgs: list[str] = [
+                    e.get_extra("orig_message") or "" for e in member.pend
+                ]  # type: ignore
                 for e in member.pend:
                     e.stop_event()
-                event.message_str = " ".join(reversed(msgs + [event.message_str]))
+                event.message_str = " ".join(msgs + [event.message_str])
+                logger.debug(f"已合并{len(member.pend)}条缓存消息：{event.message_str}")
 
         # 空@回复
         if (
@@ -300,9 +303,8 @@ class WakeProPlugin(Star):
         # 触发唤醒
         if wake:
             # 缓存消息
-            event.set_extra("timestamp", now)
             member.pend.append(event)
-            logger.warning(f"已添加event到缓存：{len(member.pend)}")
+            logger.debug(f"已添加event到缓存：{len(member.pend)}")
             # # 记录唤醒时间
             member.last_wake = now
             # 触发唤醒
@@ -314,7 +316,7 @@ class WakeProPlugin(Star):
         if self.conf["shutup"]:
             shut_th = self.sent.shut(msg)
             if shut_th > self.conf["shutup"]:
-                silence_sec = shut_th * self.conf["sult_multiple"]
+                silence_sec = shut_th * self.conf["silence_multiple"]
                 g.shutup_until = now + silence_sec
                 reason = f"闭嘴沉默{silence_sec}秒"
                 logger.info(f"[wakepro] 群({gid}){reason}：{msg}")
@@ -325,7 +327,7 @@ class WakeProPlugin(Star):
         if self.conf["insult"]:
             insult_th = self.sent.insult(msg)
             if insult_th > self.conf["insult"]:
-                silence_sec = insult_th * self.conf["sult_multiple"]
+                silence_sec = insult_th * self.conf["silence_multiple"]
                 member.silence_until = now + silence_sec
                 reason = f"辱骂沉默{silence_sec}秒"
                 logger.info(f"[wakepro] 群({gid})用户({uid}){reason}：{msg}")
@@ -347,13 +349,13 @@ class WakeProPlugin(Star):
     async def on_message(self, event: AstrMessageEvent):
         """发送消息前，清空请求消息的缓存"""
         gid: str = event.get_group_id()
-        if (
-            gid
-            and self.conf["group_whitelist"]
-            and gid in self.conf["group_whitelist"]
-            and event.get_result()
-        ):
-            uid: str = event.get_sender_id()
-            g: GroupState = StateManager.get_group(gid)
-            async with g.members[uid].lock:
-                g.members[uid].pend.clear()
+        uid: str = event.get_sender_id()
+        result = event.get_result()
+        if not gid or not uid or not result:
+            return
+        g: GroupState = StateManager.get_group(gid)
+        member = g.members.get(uid)
+        if not member or not member.pend:
+            return
+        async with g.members[uid].lock:
+            member.pend.clear()
