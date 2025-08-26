@@ -21,7 +21,7 @@
         "description": "挂起CD(秒)",
         "hint": "唤醒bot后, bot将挂起一段时间, 这段时间内如果还没等bot回复, 用户又向bot发起对话，则合并前后两次消息再请求LLM, 每个成员单独计CD, 单位秒",
         "type": "float",
-        "default": 60
+        "default": 30.0
     },
     "wake_extend": {
         "description": "唤醒延长（秒）",
