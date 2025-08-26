@@ -71,9 +71,15 @@
         "type": "float",
         "default": 0.69
     },
-    "sult_multiple": {
-        "description": "闭嘴/沉默的时间倍数",
-        "hint": "bot触发闭嘴/沉默时的阈值（0~1） * 闭嘴/沉默的时间倍数 = 闭嘴/沉默的时间",
+    "ai": {
+        "description": "人机检测阈值",
+        "hint": "检测是否是人机的发言， 如果是则bot对该人机沉默一段时间。 阈值设小点会更容易判定为人机，设为0时关闭检测",
+        "type": "float",
+        "default": 0.69
+    },
+    "silence_multiple": {
+        "description": "沉默时间倍数",
+        "hint": "触发bot沉默时的阈值（0~1） * 沉默时间倍数 = 沉默时间",
         "type": "float",
         "default": 500
     },
@@ -85,12 +91,18 @@
     },
     "wake_forbidden_words":{
         "description": "唤醒词屏蔽词",
-        "hint": "唤醒词屏蔽词，如果用户输入的唤醒词包含这些词，则不会唤醒bot",
+        "hint": "唤醒词屏蔽词，如果用户输入的唤醒词包含这些词，则不会唤醒bot(但bot管理员不受影响)",
         "type": "list",
         "default": [
             "政治",
             "键证",
             "党"
         ]
+    },
+    "block_builtin":{
+        "description": "屏蔽内置指令",
+        "hint": "内置指令即指Astrbot自带的命令，如help, tts, llm等，内置指令被屏蔽后不再会唤醒bot(但bot管理员不受影响), 从而让你的bot更像真人",
+        "type": "bool",
+        "default": false
     }
 }

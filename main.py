@@ -13,6 +13,32 @@ from .sentiment import Sentiment
 from .similarity import Similarity
 
 
+# 内置指令文本
+BUILT_CMDS = [
+    "llm",
+    "t2i",
+    "tts",
+    "sid",
+    "op",
+    "wl",
+    "dashboard_update",
+    "alter_cmd",
+    "provider",
+    "model",
+    "plugin",
+    "plugin ls",
+    "new",
+    "switch",
+    "rename",
+    "del",
+    "reset",
+    "history",
+    "persona",
+    "tool ls",
+    "key",
+    "websearch",
+]
+
 class MemberState(BaseModel):
     uid: str
     silence_until: float = 0.0  # 沉默到何时
@@ -49,8 +75,8 @@ class StateManager:
 @register(
     "astrbot_plugin_wakepro",
     "Zhalslar",
-    "更强大的唤醒增强插件：提及唤醒、唤醒延长、唤醒CD、话题相关性唤醒、答疑唤醒、无聊唤醒、闭嘴机制、被骂沉默机制、唤醒屏蔽词",
-    "v1.0.5",
+    "更强大的唤醒增强插件",
+    "v1.0.6",
 )
 class WakeProPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
@@ -157,9 +183,17 @@ class WakeProPlugin(Star):
             return
 
         # 唤醒违禁词检查
-        for word in self.conf["wake_forbidden_words"]:
-            if word in event.message_str:
-                logger.debug(f"{uid} 消息中含有唤醒屏蔽词, 忽略此次唤醒")
+        if self.conf["wake_forbidden_words"]:
+            for word in self.conf["wake_forbidden_words"]:
+                if not event.is_admin() and word in event.message_str:
+                    logger.debug(f"{uid} 消息中含有唤醒屏蔽词, 忽略此次唤醒")
+                    event.stop_event()
+                    return
+
+        # 屏蔽内置指令
+        if self.conf["block_builtin"]:
+            if not event.is_admin() and event.message_str in BUILT_CMDS:
+                logger.debug(f"{uid} 触发内置指令, 忽略此次唤醒")
                 event.stop_event()
                 return
 
@@ -181,7 +215,6 @@ class WakeProPlugin(Star):
                     for et in pend[:-1]:
                         et.stop_event()
                     event.message_str = " ".join(reversed(msgs + [event.message_str]))
-
 
         # 空@回复
         if (
@@ -272,9 +305,9 @@ class WakeProPlugin(Star):
         if self.conf["shutup"]:
             shut_th = self.sent.shut(msg)
             if shut_th > self.conf["shutup"]:
-                shut_sec = shut_th * self.conf["sult_multiple"]
-                g.shutup_until = StateManager.now() + shut_sec
-                reason = f"触发闭嘴机制{shut_sec}秒"
+                silence_sec = shut_th * self.conf["sult_multiple"]
+                g.shutup_until = StateManager.now() + silence_sec
+                reason = f"闭嘴沉默{silence_sec}秒"
                 logger.info(f"[wakepro] 群({gid}){reason}：{msg}")
                 event.stop_event()
                 return
@@ -285,9 +318,20 @@ class WakeProPlugin(Star):
             if insult_th > self.conf["insult"]:
                 silence_sec = insult_th * self.conf["sult_multiple"]
                 g.members[uid].silence_until = StateManager.now() + silence_sec
-                reason = f"触发沉默机制{silence_sec}秒"
+                reason = f"辱骂沉默{silence_sec}秒"
                 logger.info(f"[wakepro] 群({gid})用户({uid}){reason}：{msg}")
                 # event.stop_event() 本轮对话不沉默，方便回怼
+                return
+
+        # AI沉默机制(对单个用户沉默)
+        if self.conf["ai"]:
+            ai_th = self.sent.is_ai(msg)
+            if ai_th > self.conf["ai"]:
+                silence_sec = ai_th * self.conf["silence_multiple"]
+                g.members[uid].silence_until = StateManager.now() + silence_sec
+                reason = f"AI沉默{silence_sec}秒"
+                logger.info(f"[wakepro] 群({gid})用户({uid}){reason}：{msg}")
+                event.stop_event()
                 return
 
     @filter.on_decorating_result(priority=20)

@@ -163,6 +163,30 @@ class Sentiment:
         "有人会": (0.7, 1.3),
     }
 
+    # 人机检测关键词 - 常见AI口癖
+    AI_WORDS = {
+        # 明显AI用语 (权重1.0, 强度1.8-2.0)
+        "一个ai": (1.0, 2.0),
+        "人工智能": (1.0, 2.0),
+        "我是ai": (1.0, 1.9),
+        "ai助手": (1.0, 1.8),
+        "智能助手": (1.0, 1.8),
+        # 常见AI口癖 (权重0.8-0.9, 强度1.4-1.6)
+        "作为一个": (0.9, 1.5),
+        "根据你的描述": (0.9, 1.5),
+        "上下文": (0.8, 1.4),
+        "抱歉": (0.8, 1.4),
+        "模型": (0.9, 1.5),
+        "不能保证": (0.8, 1.5),
+        "无法提供": (0.8, 1.5),
+        "无法回答": (0.8, 1.5),
+        # 可疑AI特征 (权重0.6-0.7, 强度1.1-1.3)
+        "理解": (0.7, 1.2),
+        "希望": (0.7, 1.2),
+        "请注意": (0.7, 1.2),
+        "参考": (0.6, 1.1),
+    }
+
     # 否定词表 - 用于降低可信度
     NEGATION_WORDS = {
         "不",
@@ -250,20 +274,32 @@ class Sentiment:
     # 对外接口
     @classmethod
     def shut(cls, text: str) -> float:
+        """判断是否要闭嘴"""
         words = cls._seg(text)
         return cls._calculate_confidence(words, cls.SHUT_WORDS)
 
     @classmethod
     def insult(cls, text: str) -> float:
+        """判断是否辱骂"""
         words = cls._seg(text)
         return cls._calculate_confidence(words, cls.INSULT_WORDS)
 
     @classmethod
     def bored(cls, text: str) -> float:
+        """判断是否无聊"""
         words = cls._seg(text)
         return cls._calculate_confidence(words, cls.BORED_WORDS)
 
     @classmethod
     def ask(cls, text: str) -> float:
+        """判断是否疑惑"""
         words = cls._seg(text)
         return cls._calculate_confidence(words, cls.ASK_WORDS)
+
+    @classmethod
+    def is_ai(cls, text: str) -> float:
+        """
+        判断是否为AI口吻
+        """
+        words = cls._seg(text)
+        return cls._calculate_confidence(words, cls.AI_WORDS)
