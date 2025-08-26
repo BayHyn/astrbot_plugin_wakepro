@@ -11,11 +11,17 @@
         "type": "list",
         "default": []
     },
-    "member_wake_cd":{
-        "description": "唤醒CD",
-        "hint": "唤醒bot的CD(冷却时间)，每个成员单独计CD, 私聊不计CD, 单位秒",
-        "type": "int",
-        "default": 3
+    "wake_cd":{
+        "description": "唤醒CD(秒)",
+        "hint": "唤醒bot的CD(冷却时间)，每个成员单独计CD，bot处于唤醒CD时拒收该成员的一切消息，此CD优先级比其他CD高，建议别设太大，会影响挂起和唤醒延长的效果",
+        "type": "float",
+        "default": 0.5
+    },
+    "pend_cd": {
+        "description": "挂起CD(秒)",
+        "hint": "唤醒bot后, bot将挂起一段时间, 这段时间内如果还没等bot回复, 用户又向bot发起对话，则合并前后两次消息再请求LLM, 每个成员单独计CD, 单位秒",
+        "type": "float",
+        "default": 60
     },
     "empty_mention_pt": {
         "description": "空@消息提示模版",
@@ -32,8 +38,8 @@
     "wake_extend": {
         "description": "唤醒延长时间（秒）",
         "hint": "bot被唤醒后的多长时间内，持续保持唤醒状态(每个用户单独计时)。 设为0时关闭检测",
-        "type": "int",
-        "default": 3
+        "type": "float",
+        "default": 3.0
     },
     "relevant_wake": {
         "description": "相关性唤醒阈值",
