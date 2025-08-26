@@ -91,7 +91,7 @@
     },
     "wake_forbidden_words":{
         "description": "唤醒词屏蔽词",
-        "hint": "唤醒词屏蔽词，如果用户输入的唤醒词包含这些词，则不会唤醒bot",
+        "hint": "唤醒词屏蔽词，如果用户输入的唤醒词包含这些词，则不会唤醒bot(但bot管理员不受影响)",
         "type": "list",
         "default": [
             "政治",
@@ -101,7 +101,7 @@
     },
     "block_builtin":{
         "description": "屏蔽内置指令",
-        "hint": "内置指令即指Astrbot自带的命令，如help, tts, llm等，内置指令被屏蔽后不再会唤醒bot, 从而让你的bot更像真人",
+        "hint": "内置指令即指Astrbot自带的命令，如help, tts, llm等，内置指令被屏蔽后不再会唤醒bot(但bot管理员不受影响), 从而让你的bot更像真人",
         "type": "bool",
         "default": false
     }

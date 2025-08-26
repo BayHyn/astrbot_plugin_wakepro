@@ -15,6 +15,7 @@ from .similarity import Similarity
 
 # 内置指令文本
 BUILT_CMDS = [
+    "llm",
     "t2i",
     "tts",
     "sid",
@@ -24,17 +25,18 @@ BUILT_CMDS = [
     "alter_cmd",
     "provider",
     "model",
-    "ls",
+    "plugin",
+    "plugin ls",
     "new",
-    "switch 序号",
-    "rename 新名字",
+    "switch",
+    "rename",
     "del",
     "reset",
     "history",
     "persona",
     "tool ls",
     "key",
-    "websearch"
+    "websearch",
 ]
 
 class MemberState(BaseModel):
@@ -183,18 +185,17 @@ class WakeProPlugin(Star):
         # 唤醒违禁词检查
         if self.conf["wake_forbidden_words"]:
             for word in self.conf["wake_forbidden_words"]:
-                if word in event.message_str:
+                if not event.is_admin() and word in event.message_str:
                     logger.debug(f"{uid} 消息中含有唤醒屏蔽词, 忽略此次唤醒")
                     event.stop_event()
                     return
 
         # 屏蔽内置指令
         if self.conf["block_builtin"]:
-            for cmd in BUILT_CMDS:
-                if cmd in event.message_str:
-                    logger.debug(f"{uid} 触发内置指令, 忽略此次唤醒")
-                    event.stop_event()
-                    return
+            if not event.is_admin() and event.message_str in BUILT_CMDS:
+                logger.debug(f"{uid} 触发内置指令, 忽略此次唤醒")
+                event.stop_event()
+                return
 
         # 沉默 / 闭嘴检查
         if self._is_shutup(g):
@@ -324,7 +325,7 @@ class WakeProPlugin(Star):
 
         # AI沉默机制(对单个用户沉默)
         if self.conf["ai"]:
-            ai_th = self.sent.insult(msg)
+            ai_th = self.sent.is_ai(msg)
             if ai_th > self.conf["ai"]:
                 silence_sec = ai_th * self.conf["silence_multiple"]
                 g.members[uid].silence_until = StateManager.now() + silence_sec
