@@ -74,81 +74,13 @@ class StateManager:
     "astrbot_plugin_wakepro",
     "Zhalslar",
     "更强大的唤醒增强插件",
-    "v1.0.8",
+    "v1.0.9",
 )
 class WakeProPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
         self.conf = config
         self.sent = Sentiment()
-
-    def _is_shutup(self, g: GroupState) -> bool:
-        return g.shutup_until > StateManager.now()
-
-    def _is_insult(self, g: GroupState, uin: str) -> bool:
-        m = g.members.get(uin)
-        silence_until = m.silence_until if m else 0
-        return silence_until > StateManager.now()
-
-    async def _get_history_msg(
-        self, event: AstrMessageEvent, role: str = "assistant", count: int | None = 0
-    ) -> list | None:
-        """获取历史消息"""
-        try:
-            umo = event.unified_msg_origin
-            curr_cid = await self.context.conversation_manager.get_curr_conversation_id(
-                umo
-            )
-            if not curr_cid:
-                return None
-
-            conversation = await self.context.conversation_manager.get_conversation(
-                umo, curr_cid
-            )
-            if not conversation:
-                return None
-
-            history = json.loads(conversation.history or "[]")
-            contexts = [
-                record["content"]
-                for record in history
-                if record.get("role") == role and record.get("content")
-            ]
-            return contexts[-count:] if count else contexts
-
-        except Exception as e:
-            logger.error(f"获取历史消息失败：{e}")
-            return None
-
-    async def _get_llm_respond(
-        self, event: AstrMessageEvent, prompt_template: str
-    ) -> str | None:
-        """调用llm回复"""
-        try:
-            umo = event.unified_msg_origin
-            curr_cid = await self.context.conversation_manager.get_curr_conversation_id(
-                umo
-            )
-            conversation = await self.context.conversation_manager.get_conversation(
-                umo, curr_cid
-            )
-            contexts = json.loads(conversation.history)
-
-            personality = self.context.get_using_provider().curr_personality
-            personality_prompt = personality["prompt"] if personality else ""
-
-            format_prompt = prompt_template.format(username=event.get_sender_name())
-
-            llm_response = await self.context.get_using_provider().text_chat(
-                prompt=format_prompt,
-                system_prompt=personality_prompt,
-                contexts=contexts,
-            )
-            return llm_response.completion_text
-
-        except Exception as e:
-            logger.error(f"LLM 调用失败：{e}")
-            return None
 
     @filter.event_message_type(filter.EventMessageType.GROUP_MESSAGE, priority=99)
     async def on_group_msg(self, event: AstrMessageEvent):
@@ -201,11 +133,13 @@ class WakeProPlugin(Star):
                 event.stop_event()
                 return
 
-        # 沉默 / 闭嘴检查
-        if self._is_shutup(g):
+        # 闭嘴检查
+        if g.shutup_until > now:
             event.stop_event()
             return
-        if self._is_insult(g, uid):
+
+        # 沉默检查（辱骂/人机）
+        if not event.is_admin() and member.silence_until > now:
             event.stop_event()
             return
 
@@ -359,3 +293,63 @@ class WakeProPlugin(Star):
             return
         async with g.members[uid].lock:
             member.pend.clear()
+
+    async def _get_history_msg(
+        self, event: AstrMessageEvent, role: str = "assistant", count: int | None = 0
+    ) -> list | None:
+        """获取历史消息"""
+        try:
+            umo = event.unified_msg_origin
+            curr_cid = await self.context.conversation_manager.get_curr_conversation_id(
+                umo
+            )
+            if not curr_cid:
+                return None
+
+            conversation = await self.context.conversation_manager.get_conversation(
+                umo, curr_cid
+            )
+            if not conversation:
+                return None
+
+            history = json.loads(conversation.history or "[]")
+            contexts = [
+                record["content"]
+                for record in history
+                if record.get("role") == role and record.get("content")
+            ]
+            return contexts[-count:] if count else contexts
+
+        except Exception as e:
+            logger.error(f"获取历史消息失败：{e}")
+            return None
+
+    async def _get_llm_respond(
+        self, event: AstrMessageEvent, prompt_template: str
+    ) -> str | None:
+        """调用llm回复"""
+        try:
+            umo = event.unified_msg_origin
+            curr_cid = await self.context.conversation_manager.get_curr_conversation_id(
+                umo
+            )
+            conversation = await self.context.conversation_manager.get_conversation(
+                umo, curr_cid
+            )
+            contexts = json.loads(conversation.history)
+
+            personality = self.context.get_using_provider().curr_personality
+            personality_prompt = personality["prompt"] if personality else ""
+
+            format_prompt = prompt_template.format(username=event.get_sender_name())
+
+            llm_response = await self.context.get_using_provider().text_chat(
+                prompt=format_prompt,
+                system_prompt=personality_prompt,
+                contexts=contexts,
+            )
+            return llm_response.completion_text
+
+        except Exception as e:
+            logger.error(f"LLM 调用失败：{e}")
+            return None
