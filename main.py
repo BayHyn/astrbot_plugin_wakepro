@@ -65,16 +65,12 @@ class StateManager:
             cls._groups[gid] = GroupState(gid=gid)
         return cls._groups[gid]
 
-    @staticmethod
-    def now() -> float:
-        return time.time()
-
 
 @register(
     "astrbot_plugin_wakepro",
     "Zhalslar",
     "更强大的唤醒增强插件",
-    "v1.0.9",
+    "v1.1.0",
 )
 class WakeProPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
@@ -92,14 +88,13 @@ class WakeProPlugin(Star):
         msg: str = event.message_str
         g: GroupState = StateManager.get_group(gid)
 
-        # 群聊白名单 / 用户黑名单
+        # 群聊黑白名单 / 用户黑名单
         if uid == bid:
             return
-        if (
-            gid
-            and self.conf["group_whitelist"]
-            and gid not in self.conf["group_whitelist"]
-        ):
+        if self.conf["group_whitelist"] and gid not in self.conf["group_whitelist"]:
+            return
+        if gid in self.conf["group_blacklist"] and not event.is_admin():
+            event.stop_event()
             return
         if uid in self.conf.get("user_blacklist", []):
             event.stop_event()
@@ -110,7 +105,7 @@ class WakeProPlugin(Star):
             g.members[uid] = MemberState(uid=uid)
 
         member = g.members[uid]
-        now = StateManager.now()
+        now = time.time()
 
         # 唤醒CD检查
         if now - g.members[uid].last_wake < self.conf["wake_cd"]:
@@ -191,8 +186,7 @@ class WakeProPlugin(Star):
         if (
             not wake
             and self.conf["wake_extend"]
-            and (StateManager.now() - member.last_wake)
-            <= int(self.conf["wake_extend"] or 0)
+            and (now - member.last_wake) <= int(self.conf["wake_extend"] or 0)
         ):
             wake = True
             reason = "唤醒延长"

@@ -5,6 +5,12 @@
         "type": "list",
         "default": []
     },
+    "group_blacklist": {
+        "description": "群聊黑名单",
+        "hint": "屏蔽黑名单中的群聊，该群消息无法唤醒bot(但bot管理员不受影响)",
+        "type": "list",
+        "default": []
+    },
     "user_blacklist": {
         "description": "用户黑名单",
         "hint": "屏蔽黑名单里的用户，使其全局无法唤醒bot",
