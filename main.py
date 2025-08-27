@@ -70,7 +70,7 @@ class StateManager:
     "astrbot_plugin_wakepro",
     "Zhalslar",
     "更强大的唤醒增强插件",
-    "v1.1.0",
+    "v1.1.1",
 )
 class WakeProPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
@@ -87,6 +87,10 @@ class WakeProPlugin(Star):
         uid: str = event.get_sender_id()
         msg: str = event.message_str
         g: GroupState = StateManager.get_group(gid)
+
+        # 只处理文本
+        if not msg:
+            return
 
         # 群聊黑白名单 / 用户黑名单
         if uid == bid:
@@ -152,7 +156,7 @@ class WakeProPlugin(Star):
                 ]  # type: ignore
                 for e in member.pend:
                     e.stop_event()
-                event.message_str = " ".join(msgs + [event.message_str])
+                event.message_str = "。".join(msgs + [event.message_str])
                 logger.debug(f"已合并{len(member.pend)}条缓存消息：{event.message_str}")
 
         # 空@回复
@@ -283,7 +287,7 @@ class WakeProPlugin(Star):
             return
         g: GroupState = StateManager.get_group(gid)
         member = g.members.get(uid)
-        if not member or not member.pend:
+        if not member:
             return
         async with g.members[uid].lock:
             member.pend.clear()
