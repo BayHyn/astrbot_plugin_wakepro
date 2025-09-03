@@ -8,6 +8,9 @@ from astrbot.api.star import Context, Star, register
 from astrbot.core.message.components import At
 from astrbot.core.platform.astr_message_event import AstrMessageEvent
 from astrbot.core.config.astrbot_config import AstrBotConfig
+from astrbot.core.star.filter.command import CommandFilter
+from astrbot.core.star.filter.command_group import CommandGroupFilter
+from astrbot.core.star.star_handler import star_handlers_registry
 from astrbot.api import logger
 from .sentiment import Sentiment
 from .similarity import Similarity
@@ -70,13 +73,29 @@ class StateManager:
     "astrbot_plugin_wakepro",
     "Zhalslar",
     "更强大的唤醒增强插件",
-    "v1.1.1",
+    "v1.1.2",
 )
 class WakeProPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
         self.conf = config
         self.sent = Sentiment()
+        self.commands = self._get_all_commands()
+
+
+    def _get_all_commands(self) -> list[str]:
+        """遍历所有注册的处理器获取所有命令"""
+        commands = []
+        for handler in star_handlers_registry:
+            for fl in handler.event_filters:
+                if isinstance(fl, CommandFilter):
+                    commands.append(fl.command_name)
+                    break
+                elif isinstance(fl, CommandGroupFilter):
+                    commands.append(fl.group_name)
+                    break
+        logger.debug(f"插件的指令列表：{commands}")
+        return commands
 
     @filter.event_message_type(filter.EventMessageType.GROUP_MESSAGE, priority=99)
     async def on_group_msg(self, event: AstrMessageEvent):
@@ -91,6 +110,7 @@ class WakeProPlugin(Star):
         # 只处理文本
         if not msg:
             return
+        cmd = msg.split(" ", 1)[0]
 
         # 群聊黑白名单 / 用户黑名单
         if uid == bid:
@@ -143,21 +163,22 @@ class WakeProPlugin(Star):
             return
 
         # 消息缓存与合并
-        event.set_extra("orig_message", event.message_str)
-        event.set_extra("timestamp", now)
-        async with member.lock:
-            if (
-                member.pend
-                and now - member.pend[-1].get_extra("timestamp")  # type: ignore
-                < self.conf["pend_cd"]
-            ):
-                msgs: list[str] = [
-                    e.get_extra("orig_message") or "" for e in member.pend
-                ]  # type: ignore
-                for e in member.pend:
-                    e.stop_event()
-                event.message_str = "。".join(msgs + [event.message_str])
-                logger.debug(f"已合并{len(member.pend)}条缓存消息：{event.message_str}")
+        if cmd not in self.commands:
+            event.set_extra("orig_message", event.message_str)
+            event.set_extra("timestamp", now)
+            async with member.lock:
+                if (
+                    member.pend
+                    and now - member.pend[-1].get_extra("timestamp")  # type: ignore
+                    < self.conf["pend_cd"]
+                ):
+                    msgs: list[str] = [
+                        e.get_extra("orig_message") or "" for e in member.pend
+                    ]  # type: ignore
+                    for e in member.pend:
+                        e.stop_event()
+                    event.message_str = "。".join(msgs + [event.message_str])
+                    logger.debug(f"已合并{len(member.pend)}条缓存消息：{event.message_str}")
 
         # 空@回复
         if (
@@ -235,8 +256,9 @@ class WakeProPlugin(Star):
         # 触发唤醒
         if wake:
             # 缓存消息
-            member.pend.append(event)
-            logger.debug(f"已添加event到缓存：{len(member.pend)}")
+            if cmd not in self.commands:
+                member.pend.append(event)
+                logger.debug(f"已添加event到缓存：{len(member.pend)}")
             # # 记录唤醒时间
             member.last_wake = now
             # 触发唤醒
